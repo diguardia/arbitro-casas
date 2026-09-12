@@ -1,0 +1,19 @@
+{
+  "name": "arbitro-casas",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand",
+    "test:watch": "npm run test -- --watchAll",
+    "test:coverage": "npm run test -- --coverage"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "jest": "^30.5.1"
+  }
+}
