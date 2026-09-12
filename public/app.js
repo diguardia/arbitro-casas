@@ -126,12 +126,73 @@ function render() {
   if (game.result) { $('result').replaceChildren(); const title = document.createElement('strong'); title.textContent = game.result.winner ? `Victoria del jugador ${game.result.winner}` : '¡Empate!'; $('result').append(title, `${game.result.reason} Resultado: A ${game.scores.A} · B ${game.scores.B}.`); }
 }
 function schedule() { clearTimeout(timer); if (game && !game.result && !isHuman() && !paused && !busy) timer = setTimeout(takeTurn, Number($('speed').value)); }
+async function animateTurn(previous, next) {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const board = $('board');
+  const moving = Object.entries(previous.pieces).filter(([id, from]) => {
+    const to = next.pieces[id];
+    return to && (from[0] !== to[0] || from[1] !== to[1]);
+  });
+  if (!moving.length || !board.animate) return;
+  const layer = document.createElement('div');
+  layer.className = 'piece-motion-layer';
+  layer.setAttribute('aria-hidden', 'true');
+  board.append(layer);
+  const hidden = [];
+  try {
+    const bounds = layer.getBoundingClientRect();
+    const cellBounds = pos => board.children[pos[0] * 10 + pos[1]].getBoundingClientRect();
+    const first = cellBounds([0, 0]);
+    const pitchX = cellBounds([0, 1]).left - first.left;
+    const pitchY = cellBounds([1, 0]).top - first.top;
+    const sprites = moving.map(([id, from]) => {
+      const original = board.children[from[0] * 10 + from[1]].querySelector('.piece');
+      const rect = original.getBoundingClientRect();
+      const sprite = original.cloneNode(true);
+      Object.assign(sprite.style, { position: 'absolute', left: `${rect.left - bounds.left}px`, top: `${rect.top - bounds.top}px`, width: `${rect.width}px`, height: `${rect.height}px` });
+      layer.append(sprite);
+      original.style.visibility = 'hidden';
+      hidden.push(original);
+      return { id, from, sprite };
+    });
+    $('phase').textContent = 'Moviendo fichas…';
+    for (const { id, from, sprite } of sprites) {
+      const to = next.pieces[id];
+      // The die is at most three: the shortest signed delta follows the move.
+      const dr = (to[0] - from[0] + 15) % 10 - 5;
+      const dc = (to[1] - from[1] + 15) % 10 - 5;
+      const wrapX = (from[1] + dc - to[1]) * pitchX;
+      const wrapY = (from[0] + dr - to[0]) * pitchY;
+      const copies = [sprite];
+      if (wrapX || wrapY) {
+        const copy = sprite.cloneNode(true);
+        copy.style.left = `${parseFloat(sprite.style.left) - wrapX}px`;
+        copy.style.top = `${parseFloat(sprite.style.top) - wrapY}px`;
+        layer.append(copy);
+        copies.push(copy);
+      }
+      const animations = copies.map(copy => copy.animate([
+        { transform: 'translate(0, 0)' },
+        { transform: `translate(${dc * pitchX}px, ${dr * pitchY}px)` }
+      ], { duration: 280, easing: 'ease-in-out', fill: 'forwards' }));
+      await Promise.all(animations.map(animation => animation.finished.catch(() => {})));
+      sprite.style.left = `${parseFloat(sprite.style.left) + (to[1] - from[1]) * pitchX}px`;
+      sprite.style.top = `${parseFloat(sprite.style.top) + (to[0] - from[0]) * pitchY}px`;
+      animations.forEach(animation => animation.cancel());
+      copies.slice(1).forEach(copy => copy.remove());
+    }
+  } finally {
+    layer.remove();
+    hidden.forEach(piece => { piece.style.visibility = ''; });
+  }
+}
 async function takeTurn() {
   if (busy || !game || game.result) return;
   clearTimeout(timer); busy = true; showError(); render();
   try {
     const result = await request(`/api/games/${gameId}/turn`, { turn: game.completed, moves });
     const previous = game;
+    await animateTurn(previous, result.game);
     game = result.game; moves = {}; selected = isHuman() ? Object.keys(game.pieces).find(id => id.startsWith(game.current)) : null;
     sound.play(game.result ? 'finish' : game.failures[previous.current] > previous.failures[previous.current] ? 'error' : game.houses.length < previous.houses.length ? 'capture' : 'move');
     render();
