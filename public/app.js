@@ -99,7 +99,7 @@ function render() {
   $('phase').textContent = game.result ? 'Partida finalizada' : rolling ? 'Girando la rueda…' : busy ? 'Procesando turno…' : `Turno del jugador ${game.current}`;
   $('turn-count').textContent = `TURNO ${game.result ? game.completed : game.completed + 1} / 50`;
   $('remaining').textContent = `${game.houses.length} CASAS POR CONQUISTAR`;
-  $('scores').innerHTML = ['A', 'B'].map(p => `<div class="score ${!game.result && game.current === p ? 'active' : ''}"><span class="score-title"><span class="player-marker ${p.toLowerCase()}">${p}</span>${game.config[p].type === 'bot' ? 'Bot' : 'Humano'}</span><strong>${game.scores[p]} <small>casas</small></strong><small>${Object.keys(game.pieces).filter(id => id[0] === p).length} fichas · ${game.failures[p]}/3 fallos${game.pending[p].length ? ` · +${game.pending[p].length} pendiente` : ''}</small></div>`).join('');
+  $('scores').innerHTML = ['A', 'B'].map(p => `<div class="score ${!game.result && game.current === p ? 'active' : ''}" data-player="${p}"><div class="score-heading"><span class="score-title"><span class="player-marker ${p.toLowerCase()}">${p}</span>${game.config[p].type === 'bot' ? 'Bot' : 'Humano'}</span><span class="penalty-track" aria-label="${game.failures[p]} de 3 jugadas inválidas">${['yellow', 'orange', 'red'].map((color, i) => `<i class="mini-card ${color} ${game.failures[p] > i ? 'earned' : ''}" title="${i + 1}ª sanción"></i>`).join('')}</span></div><strong>${game.scores[p]} <small>casas</small></strong><small>${Object.keys(game.pieces).filter(id => id[0] === p).length} fichas · ${game.failures[p]}/3 fallos${game.pending[p].length ? ` · +${game.pending[p].length} pendiente` : ''}</small></div>`).join('');
   $('turn-panel').hidden = !!game.result;
   $('die').textContent = rolling ? '…' : game.die; $('current-player').textContent = `Jugador ${game.current}`;
   $('roll-label').textContent = game.result ? 'ÚLTIMA TIRADA' : `DADO DEL TURNO · JUGADOR ${game.current}`;
@@ -186,16 +186,43 @@ async function animateTurn(previous, next) {
     hidden.forEach(piece => { piece.style.visibility = ''; });
   }
 }
+async function animateInvalidMove(player, count) {
+  const alert = $('penalty-alert');
+  const colors = ['yellow', 'orange', 'red'];
+  const names = ['Tarjeta amarilla', 'Tarjeta naranja', 'Tarjeta roja'];
+  const index = Math.min(count, 3) - 1;
+  alert.className = `penalty-alert ${colors[index]}`;
+  $('penalty-title').textContent = `${names[index]} para el jugador ${player}`;
+  $('penalty-copy').textContent = count >= 3 ? 'Tercer fallo consecutivo · pierde la partida' : `${count} de 3 fallos consecutivos`;
+  alert.hidden = false;
+  sound.play('whistle');
+  const score = document.querySelector(`.score[data-player="${player}"]`);
+  score?.classList.add('penalized');
+  if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && alert.animate) {
+    const animation = alert.animate([
+      { opacity: 0, transform: 'translate(-50%, -35%) scale(.82) rotate(-2deg)' },
+      { opacity: 1, transform: 'translate(-50%, -50%) scale(1.04) rotate(1deg)', offset: .35 },
+      { opacity: 1, transform: 'translate(-50%, -50%) scale(1)', offset: .8 },
+      { opacity: 0, transform: 'translate(-50%, -58%) scale(.96)' }
+    ], { duration: 1700, easing: 'cubic-bezier(.2,.75,.25,1)' });
+    await animation.finished.catch(() => {});
+  } else await new Promise(resolve => setTimeout(resolve, 900));
+  alert.hidden = true;
+  score?.classList.remove('penalized');
+}
 async function takeTurn() {
   if (busy || !game || game.result) return;
   clearTimeout(timer); busy = true; showError(); render();
   try {
     const result = await request(`/api/games/${gameId}/turn`, { turn: game.completed, moves });
     const previous = game;
+    const invalidPlayer = previous.current;
+    const invalid = result.game.failures[invalidPlayer] > previous.failures[invalidPlayer];
     await animateTurn(previous, result.game);
     game = result.game; moves = {}; selected = isHuman() ? Object.keys(game.pieces).find(id => id.startsWith(game.current)) : null;
-    sound.play(game.result ? 'finish' : game.failures[previous.current] > previous.failures[previous.current] ? 'error' : game.houses.length < previous.houses.length ? 'capture' : 'move');
     render();
+    if (invalid) await animateInvalidMove(invalidPlayer, game.failures[invalidPlayer]);
+    else sound.play(game.result ? 'finish' : game.houses.length < previous.houses.length ? 'capture' : 'move');
     await rollDie();
   } catch (err) { showError(err.message); paused = true;
     try { const response = await fetch(`/api/games/${gameId}`); if (response.ok) { game = (await response.json()).game; moves = {}; selected = null; } } catch {}

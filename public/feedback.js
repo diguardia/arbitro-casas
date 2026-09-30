@@ -47,6 +47,8 @@ export function createSound() {
       if (kind === 'capture') [523, 659, 784].forEach((f, i) => note(f, i * 0.09, 0.2));
       if (kind === 'finish') [523, 659, 784, 1047].forEach((f, i) => note(f, i * 0.13, 0.3));
       if (kind === 'error') { note(180, 0, 0.15, 'triangle'); note(130, 0.16, 0.2, 'triangle'); }
+      // Two sharp, airy notes suggest a referee whistle without an audio asset.
+      if (kind === 'whistle') { note(1320, 0, 0.18, 'sawtooth'); note(1540, 0.08, 0.22, 'sawtooth'); }
     },
   };
 }

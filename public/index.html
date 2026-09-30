@@ -16,6 +16,11 @@
       <div class="board-wrap"><div class="columns" aria-hidden="true"></div><div class="board-row"><div class="rows" aria-hidden="true"></div><div id="board" class="board" aria-label="Tablero de casas, 10 filas por 10 columnas"></div></div></div>
       <div class="board-footer"><span><i class="legend-house">⌂</i> Casa neutral</span><span><i class="legend-a"></i> Jugador A</span><span><i class="legend-b"></i> Jugador B</span><span class="wrap-note">↔ Los bordes se conectan</span></div>
       <div id="result" class="result" hidden></div>
+      <div id="penalty-alert" class="penalty-alert" role="status" aria-live="assertive" aria-atomic="true" hidden>
+        <div class="penalty-whistle" aria-hidden="true"><svg viewBox="0 0 96 64"><path d="M16 34h22l15-14h27v24H53L38 34M70 20v24M16 34l-8 12"/><circle cx="58" cy="32" r="5"/></svg></div>
+        <div class="penalty-card" aria-hidden="true"></div>
+        <div><span class="eyebrow">JUGADA INVÁLIDA</span><strong id="penalty-title"></strong><small id="penalty-copy"></small></div>
+      </div>
 
     </section>
     <aside>
