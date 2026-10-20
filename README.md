@@ -40,6 +40,8 @@ En la matriz real, cada casilla es `""`, `"N"` (casa neutral) o un ID como `"A1"
 
 Antes de crear la partida, el árbitro consulta `GET /profile` en el mismo origen del bot. La respuesta esperada es `{"name":"Mi bot","colors":["#112233","#445566","#778899"]}`. Deben ser exactamente tres colores hexadecimales. Si el endpoint no existe o responde datos inválidos, se usan un nombre y una paleta predeterminados para conservar compatibilidad.
 
+Al iniciar, el árbitro también envía una jugada de prueba a cada `POST /move`. La partida solo comienza si todos los bots responden dentro de cinco segundos con HTTP exitoso, JSON válido y una jugada compatible con el protocolo. La pantalla identifica por separado problemas de conexión, timeout, estado HTTP, JSON y movimientos inválidos. Esta prueba previa no consume turnos ni tarjetas. Si un bot falla durante el partido, el diagnóstico queda visible en el marcador, la animación de sanción y la bitácora.
+
 ## Decisiones del árbitro
 
 - Dado uniforme de 1 a 3, una vez por turno. Todas las fichas se mueven simultáneamente la distancia exacta, en una única dirección ortogonal. Se permite atravesar fichas e intercambiar posiciones propias; se rechazan destinos compartidos o sobre rivales.

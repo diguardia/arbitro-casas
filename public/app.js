@@ -48,10 +48,21 @@ for (let i = 0; i < 10; i++) { document.querySelector('.columns').append(Object.
 for (const p of ['A', 'B']) $(`player-${p}`).onchange = () => { $(`url-wrap-${p}`).hidden = $(`player-${p}`).value !== 'bot'; $(`url-${p}`).required = $(`player-${p}`).value === 'bot'; };
 $('rules-button').onclick = () => $('rules').showModal(); $('close-rules').onclick = () => $('rules').close();
 function showError(message) { $('error').textContent = message || ''; $('error').hidden = !message; }
+function showDiagnostics(items = []) {
+  const panel = $('bot-diagnostics');
+  panel.replaceChildren(); panel.hidden = !items.length;
+  for (const item of items) {
+    const card = document.createElement('div'); card.className = `diagnostic ${item.status}`;
+    const title = document.createElement('strong'); title.textContent = `${item.status === 'ok' ? '● LISTO' : '● ERROR'} · Jugador ${item.player} · ${item.name}`;
+    const detail = document.createElement('span'); detail.textContent = item.status === 'ok' ? `Protocolo correcto · ${item.latency} ms` : `${item.title}. ${item.detail}`;
+    const url = document.createElement('code'); url.textContent = item.url || '';
+    card.append(title, detail, url); panel.append(card);
+  }
+}
 async function request(path, data) {
   const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
   const result = await response.json();
-  if (!response.ok) throw new Error(result.error || 'No se pudo completar la solicitud.');
+  if (!response.ok) { const error = new Error(result.error || 'No se pudo completar la solicitud.'); error.data = result; throw error; }
   return result;
 }
 function isHuman() { return game && !game.result && game.config[game.current].type === 'human'; }
@@ -119,7 +130,7 @@ function render() {
   $('phase').textContent = game.result ? 'Partida finalizada' : rolling ? 'Girando la rueda…' : busy ? 'Procesando turno…' : `Turno del jugador ${game.current}`;
   $('turn-count').textContent = `TURNO ${game.result ? game.completed : game.completed + 1} / 50`;
   $('remaining').textContent = `${game.houses.length} CASAS POR CONQUISTAR`;
-  $('scores').innerHTML = ['A', 'B'].map(p => { const profile = game.config[p].profile; return `<div class="score ${!game.result && game.current === p ? 'active' : ''}" data-player="${p}"><div class="score-heading"><span class="score-title">${badge(profile)}${profile.name}</span><span class="penalty-track" aria-label="${game.failures[p]} de 3 infracciones acumuladas">${['yellow', 'orange', 'red'].map((color, i) => `<i class="mini-card ${color} ${game.failures[p] > i ? 'earned' : ''}" title="${i + 1}ª sanción"></i>`).join('')}</span></div><strong>${game.scores[p]} <small>casas</small></strong><small>${Object.keys(game.pieces).filter(id => id[0] === p).length} fichas · ${game.failures[p]}/3 tarjetas${game.pending[p].length ? ` · +${game.pending[p].length} pendiente` : ''}</small></div>`; }).join('');
+  $('scores').innerHTML = ['A', 'B'].map(p => { const profile = game.config[p].profile, health = game.config[p].health; return `<div class="score ${!game.result && game.current === p ? 'active' : ''}" data-player="${p}"><div class="score-heading"><span class="score-title">${badge(profile)}${profile.name}</span><span class="penalty-track" aria-label="${game.failures[p]} de 3 infracciones acumuladas">${['yellow', 'orange', 'red'].map((color, i) => `<i class="mini-card ${color} ${game.failures[p] > i ? 'earned' : ''}" title="${i + 1}ª sanción"></i>`).join('')}</span></div><strong>${game.scores[p]} <small>casas</small></strong><small>${Object.keys(game.pieces).filter(id => id[0] === p).length} fichas · ${game.failures[p]}/3 tarjetas${game.pending[p].length ? ` · +${game.pending[p].length} pendiente` : ''}</small><span class="health ${health?.status || 'ok'}">● ${health?.status === 'error' ? health.title : game.config[p].type === 'bot' ? `Bot conectado${health?.latency != null ? ` · ${health.latency} ms` : ''}` : 'Jugador local'}</span></div>`; }).join('');
   $('turn-panel').hidden = !!game.result;
   $('die').textContent = rolling ? '…' : game.die; $('current-player').textContent = `Jugador ${game.current}`;
   $('roll-label').textContent = game.result ? 'ÚLTIMA TIRADA' : `DADO DEL TURNO · JUGADOR ${game.current}`;
@@ -206,14 +217,14 @@ async function animateTurn(previous, next) {
     hidden.forEach(piece => { piece.style.visibility = ''; });
   }
 }
-async function animateInvalidMove(player, count) {
+async function animateInvalidMove(player, count, incident = null) {
   const alert = $('penalty-alert');
   const colors = ['yellow', 'orange', 'red'];
   const names = ['Tarjeta amarilla', 'Tarjeta naranja', 'Tarjeta roja'];
   const index = Math.min(count, 3) - 1;
   alert.className = `penalty-alert ${colors[index]}`;
-  $('penalty-title').textContent = `${names[index]} para el jugador ${player}`;
-  $('penalty-copy').textContent = count >= 3 ? 'Tercera infracción acumulada · pierde la partida' : `${count} de 3 infracciones acumuladas`;
+  $('penalty-title').textContent = incident ? `${names[index]} · ${incident.title}` : `${names[index]} para el jugador ${player}`;
+  $('penalty-copy').textContent = incident ? `${incident.detail} · Jugador ${player} · ${count}/3 tarjetas` : count >= 3 ? 'Tercera infracción acumulada · pierde la partida' : `${count} de 3 infracciones acumuladas`;
   alert.hidden = false;
   sound.play('whistle');
   const score = document.querySelector(`.score[data-player="${player}"]`);
@@ -241,7 +252,7 @@ async function takeTurn() {
     await animateTurn(previous, result.game);
     game = result.game; moves = {}; selected = isHuman() ? Object.keys(game.pieces).find(id => id.startsWith(game.current)) : null;
     render();
-    if (invalid) await animateInvalidMove(invalidPlayer, game.failures[invalidPlayer]);
+    if (invalid) await animateInvalidMove(invalidPlayer, game.failures[invalidPlayer], result.incident);
     else sound.play(game.result ? 'finish' : game.houses.length < previous.houses.length ? 'capture' : 'move');
     await rollDie();
   } catch (err) { showError(err.message); paused = true;
@@ -249,7 +260,7 @@ async function takeTurn() {
   } finally { busy = false; render(); schedule(); }
 }
 $('setup-form').onsubmit = async event => {
-  event.preventDefault(); if (busy) return; busy = true; $('start').disabled = true; showError();
+  event.preventDefault(); if (busy) return; busy = true; $('start').disabled = true; $('start').firstChild.textContent = 'Verificando bots… '; showError(); showDiagnostics();
   sound.unlock();
   try {
     const config = Object.fromEntries(['A', 'B'].map(p => [p, { type: $(`player-${p}`).value, url: $(`url-${p}`).value.trim() }]));
@@ -257,7 +268,7 @@ $('setup-form').onsubmit = async event => {
     window.scrollTo({ top: 0, behavior: 'instant' });
     await showVersus();
     await rollDie();
-  } catch (err) { showError(err.message); } finally { busy = false; $('start').disabled = false; render(); schedule(); }
+  } catch (err) { showError(err.message); showDiagnostics(err.data?.diagnostics); } finally { busy = false; $('start').disabled = false; $('start').firstChild.textContent = 'Iniciar partida '; render(); schedule(); }
 };
 $('confirm').onclick = takeTurn;
 $('pause').onclick = () => { paused = !paused; render(); schedule(); };
