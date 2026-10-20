@@ -37,11 +37,11 @@ test('spawn determinista evita fichas y casas neutrales', () => {
   const g = make(); g.pending.A = [[0, 0]]; g.houses = [[9, 0]];
   beginTurn(g, () => 0); expect(g.pieces.A2).toEqual([0, 1]);
 });
-test('fallos son atómicos, consecutivos por jugador y producen derrota técnica', () => {
+test('fallos son atómicos, acumulativos por jugador y producen derrota técnica', () => {
   const g = make(); const initial = structuredClone(g.pieces);
   playTurn(g, {}); expect(g.pieces).toEqual(initial); expect(g.failures.A).toBe(1);
-  playTurn(g, { B1: 'N' }); playTurn(g, { A1: 'E' }); expect(g.failures.A).toBe(0);
-  for (let i = 0; i < 3; i++) { playTurn(g, { B1: 'N' }); playTurn(g, {}); }
+  playTurn(g, { B1: 'N' }); playTurn(g, { A1: 'E' }); expect(g.failures.A).toBe(1);
+  for (let i = 0; i < 2; i++) { playTurn(g, { B1: 'N' }); playTurn(g, {}); }
   expect(g.result.winner).toBe('B'); expect(g.result.reason).toMatch(/técnica/);
 });
 test('termina con última casa y no inicia turnos adicionales', () => {

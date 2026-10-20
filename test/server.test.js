@@ -11,7 +11,11 @@ afterEach(async () => {
 });
 test('HTTP: creación, bots, turnos duplicados y derrota técnica', async () => {
   let received;
-  const bot = http.createServer(async (req, res) => { let text = ''; for await (const chunk of req) text += chunk; received = JSON.parse(text); res.setHeader('Content-Type', 'application/json'); res.end('{}'); });
+  const bot = http.createServer(async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    if (req.method === 'GET') return res.end(JSON.stringify({ name: 'Bot de prueba', colors: ['#112233', '#445566', '#778899'] }));
+    let text = ''; for await (const chunk of req) text += chunk; received = JSON.parse(text); res.end('{}');
+  });
   const app = createServer();
   servers.push(bot, app);
   await new Promise(resolve => bot.listen(0, '127.0.0.1', resolve));
@@ -20,7 +24,8 @@ test('HTTP: creación, bots, turnos duplicados y derrota técnica', async () => 
   const post = (path, data) => fetch(base + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
   const config = { A: { type: 'bot', url: `http://127.0.0.1:${bot.address().port}` }, B: { type: 'human' } };
   const response = await post('/api/games', config); expect(response.status).toBe(201);
-  const { id } = await response.json();
+  const { id, game: created } = await response.json();
+  expect(created.config.A.profile).toEqual({ name: 'Bot de prueba', colors: ['#112233', '#445566', '#778899'] });
   for (let turn = 0; turn < 5; turn++) {
     const res = await post(`/api/games/${id}/turn`, { turn, moves: { B1: 'N' } });
     expect(res.status).toBe(200);

@@ -55,3 +55,11 @@ main{max-width:1264px;padding:12px 24px;margin:auto}
   #die{font-size:40px}#die-caption{font-size:11px}.roll-copy .eyebrow{font-size:8px}#history-button{font-size:10px}.board-footer{font-size:8px;gap:9px}.board-footer .wrap-note{display:none}.roll-reading{gap:8px;min-height:42px}.piece{font-size:10px}.panel h2{font-size:19px}#move-status{min-height:0}
 }
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+.team-colors{display:inline-block;width:25px;height:25px;flex:0 0 25px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #24352e22;background:linear-gradient(to bottom,var(--c1) 0 33.33%,var(--c2) 33.33% 66.66%,var(--c3) 66.66% 100%)}
+.score-title{display:flex;align-items:center;gap:6px;min-width:0}.score-title .team-colors{width:22px;height:22px;flex-basis:22px}
+.versus-intro{position:fixed;z-index:100;inset:0;display:grid;place-items:center;background:#172d25e8;backdrop-filter:blur(8px)}
+.versus-card{position:relative;display:grid;grid-template-columns:minmax(110px,1fr) auto minmax(110px,1fr);align-items:center;gap:clamp(18px,5vw,70px);width:min(820px,90vw);padding:70px 40px;color:#fff;text-align:center}
+.versus-player{display:grid;justify-items:center;gap:18px;font:600 clamp(22px,4vw,44px) 'Space Grotesk',sans-serif;animation:versus-in .7s cubic-bezier(.2,.8,.2,1) both}.versus-player:last-of-type{animation-name:versus-in-right}.versus-player .team-colors{width:92px;height:92px}
+.versus-mark{font:700 clamp(28px,5vw,64px) 'Space Grotesk',sans-serif;color:var(--orange)}.countdown{position:absolute;left:50%;top:calc(100% - 48px);transform:translateX(-50%);font:700 72px/1 'Space Grotesk',sans-serif;color:#fff}
+@keyframes versus-in{from{opacity:0;transform:translateX(-80px) rotate(-6deg)}to{opacity:1;transform:none}}@keyframes versus-in-right{from{opacity:0;transform:translateX(80px) rotate(6deg)}to{opacity:1;transform:none}}
+@media(max-width:560px){.versus-card{grid-template-columns:1fr auto 1fr;padding-inline:14px;gap:12px}.versus-player .team-colors{width:64px;height:64px}.versus-player{font-size:18px}}

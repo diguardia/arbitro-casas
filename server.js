@@ -11,6 +11,24 @@ async function body(req) {
   for await (const chunk of req) { data += chunk; if (data.length > 16384) throw new Error('Solicitud demasiado grande.'); }
   return JSON.parse(data || '{}');
 }
+const defaultProfiles = {
+  A: { name: 'Bot A', colors: ['#244d3e', '#b7cf9c', '#f6f7f2'] },
+  B: { name: 'Bot B', colors: ['#e5a768', '#f2cf49', '#493721'] },
+};
+function validProfile(value, player) {
+  const rawName = typeof value?.name === 'string' ? value.name.trim().replace(/[&<>"']/g, '') : '';
+  const name = rawName ? rawName.slice(0, 40) : defaultProfiles[player].name;
+  const colors = Array.isArray(value?.colors) && value.colors.length === 3 && value.colors.every(color => /^#[0-9a-f]{6}$/i.test(color)) ? value.colors : defaultProfiles[player].colors;
+  return { name, colors };
+}
+async function askBotProfile(moveUrl, player) {
+  try {
+    const url = new URL(moveUrl); url.pathname = url.pathname.replace(/\/move\/?$/, '/profile');
+    const response = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(3000), redirect: 'error' });
+    if (!response.ok) throw new Error();
+    return validProfile(await response.json(), player);
+  } catch { return defaultProfiles[player]; }
+}
 export function createServer() {
   return http.createServer(async (req, res) => {
     try {
@@ -24,6 +42,9 @@ export function createServer() {
             if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error('Usá una URL HTTP o HTTPS sin credenciales.');
             if (url.pathname === '/') url.pathname = '/move';
             config[p].url = url.href;
+            config[p].profile = await askBotProfile(config[p].url, p);
+          } else {
+            config[p].profile = { name: `Humano ${p}`, colors: defaultProfiles[p].colors };
           }
         }
         const id = crypto.randomUUID(), game = createGame(config);

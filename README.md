@@ -38,13 +38,15 @@ Contrato de `POST /move`:
 
 En la matriz real, cada casilla es `""`, `"N"` (casa neutral) o un ID como `"A1"` o `"B2"`. Respuesta esperada: `{"A1":"N","A2":"O"}`. Direcciones: N, S, E, O. Debe incluir exactamente todas las fichas propias. El bot de ejemplo solo mueve su primera ficha; al obtener más fichas, necesita ampliar su estrategia o sus jugadas serán inválidas.
 
+Antes de crear la partida, el árbitro consulta `GET /profile` en el mismo origen del bot. La respuesta esperada es `{"name":"Mi bot","colors":["#112233","#445566","#778899"]}`. Deben ser exactamente tres colores hexadecimales. Si el endpoint no existe o responde datos inválidos, se usan un nombre y una paleta predeterminados para conservar compatibilidad.
+
 ## Decisiones del árbitro
 
 - Dado uniforme de 1 a 3, una vez por turno. Todas las fichas se mueven simultáneamente la distancia exacta, en una única dirección ortogonal. Se permite atravesar fichas e intercambiar posiciones propias; se rechazan destinos compartidos o sobre rivales.
 - Cinco casas: dos pares simétricos por rotación y una quinta equidistante de ambas esquinas usando distancia Manhattan toroidal. Esto equilibra las distancias iniciales; no garantiza igualdad estratégica.
 - Solo se conquista al llegar al destino. La nueva ficha se incorpora al inicio del siguiente turno propio. Si la posición original está ocupada, se busca por amplitud la casilla libre más cercana, explorando N, E, S, O y respetando los bordes conectados. Las casas neutrales se reservan para conquistarlas con movimientos.
 - Termina al conquistar todas las casas o completar 50 turnos individuales, según las reglas adjuntas. Gana quien conquistó más; puede haber empate.
-- Un fallo consume el turno sin mover ninguna ficha; tres fallos consecutivos del mismo jugador implican derrota técnica. Una jugada válida reinicia su contador. Un bot tiene 5 segundos para responder; errores HTTP, JSON inválido y movimientos inválidos cuentan como fallos. Los humanos no tienen límite temporal y la interfaz permite corregir propuestas inválidas.
+- Un fallo consume el turno sin mover ninguna ficha. Las sanciones se acumulan durante toda la partida y la tercera implica tarjeta roja y derrota técnica, aunque entre ellas haya jugadas válidas. Un bot tiene 5 segundos para responder; errores HTTP, JSON inválido y movimientos inválidos cuentan como fallos. Los humanos no tienen límite temporal y la interfaz permite corregir propuestas inválidas.
 - El servidor es la autoridad sobre dados, posiciones y validación. Las partidas se mantienen en memoria; reiniciar el servidor o recargar la interfaz requiere iniciar una nueva. El servidor escucha únicamente en la computadora local y permite bots HTTP/HTTPS locales o remotos. No está preparado como servicio público multiusuario.
 
 ## Verificación y archivos

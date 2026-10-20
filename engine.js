@@ -77,7 +77,6 @@ export function playTurn(game, moves, error = null, random = Math.random) {
     game.failures[p]++;
     game.log.push({ text: `Turno ${turn} · ${p}: ${invalid} Fallos: ${game.failures[p]}/3.`, type: 'error' });
   } else {
-    game.failures[p] = 0;
     for (const [id, direction] of Object.entries(moves)) game.pieces[id] = destination(game.pieces[id], direction, game.die);
     let captured = 0;
     game.houses = game.houses.filter(h => {
@@ -89,7 +88,7 @@ export function playTurn(game, moves, error = null, random = Math.random) {
     game.log.push({ text: `Turno ${turn} · ${p} · dado ${game.die}: ${Object.entries(moves).map(([id, d]) => `${id} ${d}`).join(', ')}${captured ? ` · ${captured} casa(s) conquistada(s)` : ''}.`, type: captured ? 'capture' : 'move' });
   }
   game.completed++;
-  if (game.failures[p] >= 3) game.result = { winner: other(p), reason: 'Derrota técnica: tres fallos consecutivos.' };
+  if (game.failures[p] >= 3) game.result = { winner: other(p), reason: 'Derrota técnica: tres infracciones acumuladas.' };
   else if (!game.houses.length || game.completed >= 50) game.result = {
     winner: game.scores.A === game.scores.B ? null : game.scores.A > game.scores.B ? 'A' : 'B',
     reason: !game.houses.length ? 'Todas las casas fueron conquistadas.' : 'Se completaron los 50 turnos.'

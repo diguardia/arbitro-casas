@@ -55,6 +55,26 @@ async function request(path, data) {
   return result;
 }
 function isHuman() { return game && !game.result && game.config[game.current].type === 'human'; }
+function badge(profile) {
+  const colors = profile.colors;
+  return `<i class="team-colors" style="--c1:${colors[0]};--c2:${colors[1]};--c3:${colors[2]}" aria-hidden="true"></i>`;
+}
+async function showVersus() {
+  const overlay = $('versus-intro');
+  for (const p of ['A', 'B']) {
+    const profile = game.config[p].profile;
+    $(`versus-${p.toLowerCase()}`).innerHTML = `${badge(profile)}<strong>${profile.name}</strong>`;
+  }
+  overlay.hidden = false;
+  for (const value of ['3', '2', '1']) {
+    $('countdown').textContent = value; sound.play('countdown');
+    $('countdown').animate?.([{ transform: 'scale(.35)', opacity: 0 }, { transform: 'scale(1)', opacity: 1 }], { duration: 650, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    await new Promise(resolve => setTimeout(resolve, 720));
+  }
+  $('countdown').textContent = '¡YA!'; sound.play('go');
+  await new Promise(resolve => setTimeout(resolve, 650));
+  overlay.hidden = true;
+}
 function selectPiece(id) { if (!isHuman() || busy) return; selected = id; sound.play('select'); render(); }
 function choose(direction) {
   if (!selected || !isHuman() || busy) return;
@@ -99,7 +119,7 @@ function render() {
   $('phase').textContent = game.result ? 'Partida finalizada' : rolling ? 'Girando la rueda…' : busy ? 'Procesando turno…' : `Turno del jugador ${game.current}`;
   $('turn-count').textContent = `TURNO ${game.result ? game.completed : game.completed + 1} / 50`;
   $('remaining').textContent = `${game.houses.length} CASAS POR CONQUISTAR`;
-  $('scores').innerHTML = ['A', 'B'].map(p => `<div class="score ${!game.result && game.current === p ? 'active' : ''}" data-player="${p}"><div class="score-heading"><span class="score-title"><span class="player-marker ${p.toLowerCase()}">${p}</span>${game.config[p].type === 'bot' ? 'Bot' : 'Humano'}</span><span class="penalty-track" aria-label="${game.failures[p]} de 3 jugadas inválidas">${['yellow', 'orange', 'red'].map((color, i) => `<i class="mini-card ${color} ${game.failures[p] > i ? 'earned' : ''}" title="${i + 1}ª sanción"></i>`).join('')}</span></div><strong>${game.scores[p]} <small>casas</small></strong><small>${Object.keys(game.pieces).filter(id => id[0] === p).length} fichas · ${game.failures[p]}/3 fallos${game.pending[p].length ? ` · +${game.pending[p].length} pendiente` : ''}</small></div>`).join('');
+  $('scores').innerHTML = ['A', 'B'].map(p => { const profile = game.config[p].profile; return `<div class="score ${!game.result && game.current === p ? 'active' : ''}" data-player="${p}"><div class="score-heading"><span class="score-title">${badge(profile)}${profile.name}</span><span class="penalty-track" aria-label="${game.failures[p]} de 3 infracciones acumuladas">${['yellow', 'orange', 'red'].map((color, i) => `<i class="mini-card ${color} ${game.failures[p] > i ? 'earned' : ''}" title="${i + 1}ª sanción"></i>`).join('')}</span></div><strong>${game.scores[p]} <small>casas</small></strong><small>${Object.keys(game.pieces).filter(id => id[0] === p).length} fichas · ${game.failures[p]}/3 tarjetas${game.pending[p].length ? ` · +${game.pending[p].length} pendiente` : ''}</small></div>`; }).join('');
   $('turn-panel').hidden = !!game.result;
   $('die').textContent = rolling ? '…' : game.die; $('current-player').textContent = `Jugador ${game.current}`;
   $('roll-label').textContent = game.result ? 'ÚLTIMA TIRADA' : `DADO DEL TURNO · JUGADOR ${game.current}`;
@@ -193,7 +213,7 @@ async function animateInvalidMove(player, count) {
   const index = Math.min(count, 3) - 1;
   alert.className = `penalty-alert ${colors[index]}`;
   $('penalty-title').textContent = `${names[index]} para el jugador ${player}`;
-  $('penalty-copy').textContent = count >= 3 ? 'Tercer fallo consecutivo · pierde la partida' : `${count} de 3 fallos consecutivos`;
+  $('penalty-copy').textContent = count >= 3 ? 'Tercera infracción acumulada · pierde la partida' : `${count} de 3 infracciones acumuladas`;
   alert.hidden = false;
   sound.play('whistle');
   const score = document.querySelector(`.score[data-player="${player}"]`);
@@ -235,6 +255,7 @@ $('setup-form').onsubmit = async event => {
     const config = Object.fromEntries(['A', 'B'].map(p => [p, { type: $(`player-${p}`).value, url: $(`url-${p}`).value.trim() }]));
     const result = await request('/api/games', config); game = result.game; gameId = result.id; moves = {}; paused = false; selected = isHuman() ? 'A1' : null;
     window.scrollTo({ top: 0, behavior: 'instant' });
+    await showVersus();
     await rollDie();
   } catch (err) { showError(err.message); } finally { busy = false; $('start').disabled = false; render(); schedule(); }
 };
