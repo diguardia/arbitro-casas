@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": { "deploymentEnabled": false },
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index" },
     { "source": "/engine.js", "destination": "/api/index" }
