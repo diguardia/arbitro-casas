@@ -3,6 +3,7 @@ import { createSound, wheelTarget } from '/feedback.js';
 const $ = id => document.getElementById(id);
 let game = null, gameId = null, selected = null, moves = {}, busy = false, paused = false, timer;
 let rolling = false, wheelAngle = 0;
+let celebrationTimer;
 const sound = createSound();
 function updateSoundButton() {
   $('sound-toggle').textContent = sound.enabled ? '♫ Sonido activado' : '♫ Sonido apagado';
@@ -48,6 +49,39 @@ for (let i = 0; i < 10; i++) { document.querySelector('.columns').append(Object.
 for (const p of ['A', 'B']) $(`player-${p}`).onchange = () => { $(`url-wrap-${p}`).hidden = $(`player-${p}`).value !== 'bot'; $(`url-${p}`).required = $(`player-${p}`).value === 'bot'; };
 $('rules-button').onclick = () => $('rules').showModal(); $('close-rules').onclick = () => $('rules').close();
 function showError(message) { $('error').textContent = message || ''; $('error').hidden = !message; }
+function celebrate() {
+  const celebration = $('celebration');
+  const winner = game.result.winner;
+  $('celebration-title').textContent = winner ? `¡Gana ${game.config[winner].profile.name}!` : '¡Qué partidazo!';
+  const flags = $('celebration-flags');
+  flags.replaceChildren();
+  for (let i = 0; i < 18; i++) {
+    const flag = document.createElement('span');
+    flag.className = 'celebration-flag';
+    flags.append(flag);
+  }
+  const confetti = $('celebration-confetti');
+  confetti.replaceChildren();
+  for (let i = 0; i < 54; i++) {
+    const piece = document.createElement('span');
+    piece.className = 'confetti-piece';
+    piece.style.setProperty('--x', `${Math.random() * 100}vw`);
+    piece.style.setProperty('--delay', `${Math.random() * 0.8}s`);
+    piece.style.setProperty('--duration', `${2.5 + Math.random() * 1.5}s`);
+    piece.style.setProperty('--spin', `${Math.random() * 720 - 360}deg`);
+    confetti.append(piece);
+  }
+  clearTimeout(celebrationTimer);
+  celebration.hidden = false;
+  celebration.classList.remove('celebrating');
+  requestAnimationFrame(() => celebration.classList.add('celebrating'));
+  celebrationTimer = setTimeout(() => {
+    celebration.classList.remove('celebrating');
+    celebration.hidden = true;
+    flags.replaceChildren();
+    confetti.replaceChildren();
+  }, 4800);
+}
 function showDiagnostics(items = []) {
   const panel = $('bot-diagnostics');
   panel.replaceChildren(); panel.hidden = !items.length;
@@ -254,6 +288,7 @@ async function takeTurn() {
     render();
     if (invalid) await animateInvalidMove(invalidPlayer, game.failures[invalidPlayer], result.incident);
     else sound.play(game.result ? 'finish' : game.houses.length < previous.houses.length ? 'capture' : 'move');
+    if (game.result) celebrate();
     await rollDie();
   } catch (err) { showError(err.message); paused = true;
     try { const response = await fetch(`/api/games/${gameId}`); if (response.ok) { game = (await response.json()).game; moves = {}; selected = null; } } catch {}
