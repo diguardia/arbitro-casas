@@ -137,7 +137,11 @@ function renderBoard() {
     const piece = Object.keys(pieces).find(id => pieces[id][0] === r && pieces[id][1] === c);
     const house = houses.some(h => h[0] === r && h[1] === c);
     cell.setAttribute('aria-label', `Fila ${r}, columna ${c}${piece ? `, ficha ${piece}` : house ? ', casa neutral' : ', vacía'}`);
-    if (piece) cell.innerHTML = `<span class="piece ${piece[0].toLowerCase()}">${piece}</span>`;
+    if (piece) {
+      const colors = game?.config?.[piece[0]]?.profile?.colors;
+      const style = colors?.length === 3 ? ` style="--c1:${colors[0]};--c2:${colors[1]};--c3:${colors[2]}"` : '';
+      cell.innerHTML = `<span class="piece ${piece[0].toLowerCase()}"${style}>${piece}</span>`;
+    }
     else if (house) cell.innerHTML = houseIcon;
     if (piece === selected) cell.classList.add('selected');
     let targetDirection;
